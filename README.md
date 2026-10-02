@@ -22,7 +22,7 @@ weather-timeseries-analysis/
 
 ## 실행 방법
 
-1. Python 3.10 이상 설치
+1. Python 3.10 이상 설치 (실제 실행 환경: Python 3.13, Windows + VS Code)
 2. 필요 라이브러리 설치:
    ```
    pip install -r requirements.txt
@@ -39,6 +39,6 @@ weather-timeseries-analysis/
 
 - 창원 기온은 8월(약 27.6°C) 최고, 1월(약 2.1°C) 최저의 뚜렷한 계절성을 보인다.
 - 연평균은 2024년(15.42°C)이 가장 높았으나, 3년만으로는 일관된 추세로 보기 어렵다.
-- 하루 사이 기온 급락은 겨울(12·1월)에 집중된다.
+- 하루 사이 기온 급락은 11~1월에 집중되며, 겨울의 하루 평균 변동폭은 여름의 약 2.6배다.
 
 자세한 내용은 [REPORT.md](REPORT.md)를 참고하세요.
