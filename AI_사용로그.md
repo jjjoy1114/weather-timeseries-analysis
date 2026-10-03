@@ -1,0 +1,139 @@
+# AI 사용 로그 (재구성용 세션 로그)
+
+> 이 문서는 과제 수행 과정에서 AI(Claude · Cowork)와 주고받은 **프롬프트와 응답(생성 코드 포함)**을 시간 순으로 정리한 원본 세션 로그입니다. 제3자가 이 로그만으로 AI 활용 과정을 재구성할 수 있도록 작성했습니다.
+
+## 개요
+
+- **사용 AI**: Claude (Cowork 모드)
+- **작업 기간**: 2026-09-03 ~ 2026-09-04
+- **역할**: 비전공자 과제 수행자가 질문/지시(프롬프트)하면, AI가 코드 생성·개념 설명·문서 초안을 제공 → 수행자가 직접 실행·확인·검증 후 반영
+- **원칙**: 코드와 설명은 AI의 도움을 받되, 최종 해석·결론은 수행자가 그래프 수치를 근거로 직접 판단함
+
+---
+
+## 세션 흐름 요약
+
+| # | 단계 | 사용자 프롬프트(요지) | AI 응답·산출물 | 검증·반영 |
+|---|------|----------------------|----------------|-----------|
+| 1 | 준비 | 과제지시서를 md로 정리 | 과제지시서.md 구조화 | 내용 대조 |
+| 2 | 주제 | 주제 선정, 데이터 확보 쉬운 것 비교 | 4개 주제 비교표 | 기온·날씨 선택 |
+| 3 | 계획 | 보너스 추천 + 단계별 계획서 | 시계열 분해 추천, 실행계획서 10단계 | 검토 후 확정 |
+| 4 | 1단계 | 개발 환경 준비 | VS Code+Python+Jupyter 안내 | 직접 설치·실행 |
+| 5 | 2단계 | 데이터 확보 | Open-Meteo API 수집 코드 | 1,096행 수신 확인 |
+| 6 | 3단계 | 데이터 점검·정제 | 결측치/이상치 점검 코드 | 결측치 0 확인 |
+| 7 | 5단계 | 시계열 분석 | 이동평균·변화율·월별집계 코드 | 수치 직접 대조 |
+| 8 | 6단계 | 시각화 | matplotlib 그래프 코드(한글폰트) | 그래프 4종 생성 |
+| 9 | 7단계 | 보너스 분해 | statsmodels 분해 코드 | 4단 그래프 확인 |
+| 10 | 8~9단계 | 인사이트·리포트 | 인사이트 3개·REPORT.md 초안 | 해석 직접 판단 |
+| 11 | 10단계 | GitHub 업로드 | git commit/push 안내 | 직접 푸시 |
+
+---
+
+## 단계별 상세 (프롬프트 → AI 생성 코드)
+
+### [프롬프트] "데이터 확보 — Open-Meteo, 창원, 최근 3년"
+AI가 생성한 수집 코드:
+
+```python
+%pip install requests
+import requests, pandas as pd, os
+
+LAT, LON = 35.2281, 128.6811  # 창원
+url = "https://archive-api.open-meteo.com/v1/archive"
+params = {
+    "latitude": LAT, "longitude": LON,
+    "start_date": "2023-01-01", "end_date": "2025-12-31",
+    "daily": "temperature_2m_mean", "timezone": "Asia/Seoul",
+}
+response = requests.get(url, params=params)
+data = response.json()
+df = pd.DataFrame({
+    "날짜": data["daily"]["time"],
+    "평균기온": data["daily"]["temperature_2m_mean"],
+})
+df["날짜"] = pd.to_datetime(df["날짜"])
+os.makedirs("data", exist_ok=True)
+df.to_csv("data/changwon_temperature_2023_2025.csv", index=False, encoding="utf-8-sig")
+```
+**검증**: 출력 `받아온 데이터 개수: 1096 개` 및 처음/마지막 5행을 직접 확인.
+
+### [프롬프트] "데이터 살펴보기·정제"
+AI가 생성한 점검 코드:
+
+```python
+print(df.head())
+df.info()
+print(df.isnull().sum())           # 결측치 확인
+print(df["평균기온"].describe())    # 이상치 힌트
+기간_일수 = (df["날짜"].max() - df["날짜"].min()).days + 1
+print(기간_일수, len(df))           # 날짜 누락 확인
+```
+**검증**: 결측치 0개, 기간상 1,096일 = 실제 1,096일, 최고 30.6°C(정상 범위) → 정제 불필요로 판단.
+
+### [프롬프트] "시계열 분석 기법 적용"
+AI가 생성한 분석 코드:
+
+```python
+df = df.sort_values("날짜").reset_index(drop=True)
+df["이동평균_7일"]  = df["평균기온"].rolling(window=7).mean()
+df["이동평균_30일"] = df["평균기온"].rolling(window=30).mean()
+df["전일대비변화"] = df["평균기온"].diff()
+df["월"] = df["날짜"].dt.month
+월별평균 = df.groupby("월")["평균기온"].mean()
+df["연도"] = df["날짜"].dt.year
+연도별평균 = df.groupby("연도")["평균기온"].mean()
+```
+**검증**: 월별 결과(1월 2.1°C~8월 27.6°C), 연도별(2023 14.82 / 2024 15.42 / 2025 14.90)을 직접 눈으로 대조.
+
+### [프롬프트] "시각화 — 한글 깨짐 방지"
+AI가 생성한 시각화 코드(발췌):
+
+```python
+import matplotlib.pyplot as plt, os
+plt.rcParams['font.family'] = 'Malgun Gothic'   # 한글 폰트
+plt.rcParams['axes.unicode_minus'] = False
+os.makedirs("images", exist_ok=True)
+
+plt.figure(figsize=(12,5))
+plt.plot(df["날짜"], df["평균기온"], color="lightgray", label="일별 평균기온")
+plt.plot(df["날짜"], df["이동평균_30일"], color="tab:red", label="30일 이동평균")
+plt.title("창원 일별 평균기온과 이동평균 (2023~2025)")
+plt.xlabel("날짜"); plt.ylabel("기온 (°C)"); plt.legend()
+plt.savefig("images/01_기온추이_이동평균.png", dpi=150)
+```
+**검증**: 그래프 4종이 images 폴더에 저장되고 한글이 깨지지 않는지 직접 확인.
+
+### [프롬프트] "보너스 — 시계열 분해"
+AI가 생성한 분해 코드:
+
+```python
+from statsmodels.tsa.seasonal import seasonal_decompose
+ts = df.set_index("날짜")["평균기온"]
+result = seasonal_decompose(ts, model="additive", period=365)
+fig = result.plot(); fig.set_size_inches(12,9)
+fig.savefig("images/04_시계열분해.png", dpi=150, bbox_inches="tight")
+```
+**검증**: 추세/계절성/잔차 4단 그래프에서 계절성이 규칙적으로 반복되는지 직접 확인.
+
+---
+
+## AI 제안 vs 실제 적용 비교 (예시)
+
+| 구분 | AI가 처음 제안한 것 | 실제 적용/수정 | 이유 |
+|------|---------------------|----------------|------|
+| 연도별 그래프 | 막대그래프(0부터) | 수치 라벨 + y축 14~16°C 확대, 축소 표시 근거를 리포트에 명기 | 작은 차이를 왜곡 없이 보이게 |
+| 결측치 처리 | "결측치 있으면 앞뒤 값으로 채움" 코드 포함 | 실제 결측치 0 → 채우는 코드 미사용, 원본 그대로 사용 | 점검 결과 불필요 판단 |
+| 추세 해석 | 그래프로 추세 확인 | "3년으론 추세 단정 불가"로 결론 수정(2024만 높음) | 수치를 직접 보고 과잉 해석 방지 |
+
+---
+
+## AI 사용에 대한 검증 방법
+
+1. **샘플링 체크**: 이동평균·기온 값 일부를 직접 계산·대조
+2. **재현**: 노트북을 위에서부터 순서대로 재실행해 동일 결과 확인
+3. **상식 검증**: 월별 최고/최저(8월/1월), 기온 범위가 상식과 부합하는지 확인
+4. **해석 책임**: AI가 생성한 코드·문장이라도, 최종 관찰·해석·결론은 수행자가 그래프 수치를 근거로 직접 판단
+
+---
+
+*본 로그는 Claude(Cowork)와의 실제 대화를 바탕으로 재구성되었습니다.*
