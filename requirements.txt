@@ -1,6 +1,7 @@
 # 실제 실행 환경: Python 3.13 (Windows, VS Code)
-requests
+requests==2.34.2
+numpy==2.5.2
 pandas==3.0.5
 matplotlib==3.11.1
 statsmodels==0.15.0
-streamlit
+streamlit==1.65.0
