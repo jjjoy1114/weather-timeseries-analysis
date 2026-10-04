@@ -55,4 +55,5 @@ weather-timeseries-analysis/
 기간·이동평균을 바꿔 보는 대시보드(`app.py`)의 실행 방법과 화면·시나리오는 [REPORT.md 4-5절 분석 결과 대시보드](REPORT.md)에서 볼 수 있습니다. 
 
 
+
 자세한 내용은 [REPORT.md](REPORT.md)를 참고하세요.
